@@ -29,7 +29,13 @@ if client.rtm_connect():
     while True:
         messages = client.rtm_read()
         for message in messages:
-            if message['type'] != 'message':
+            if message.get('type', None) != 'message' or 'text' not in message:
+                continue
+
+            # Reject messages coming from ourself! I cheated and used the bot's
+            # user ID which I checked after deploying the bot. For a better way
+            # of doing this, see weatherbot.
+            if message['user'] == 'U0HQDMKJL':
                 continue
 
             # We only want to respond to direct messages in this example.

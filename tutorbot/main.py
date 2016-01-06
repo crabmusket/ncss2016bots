@@ -86,7 +86,7 @@ ex2script = example('''
 ''')
 
 ex3script = example('''
-            if message['type'] != 'message':
+            if message.get('type', None) != 'message' or 'text' not in message:
                 continue
             if 'robots suck' in message['text']:
                 client.rtm_send_message(message['channel'], 'I heard that!')
