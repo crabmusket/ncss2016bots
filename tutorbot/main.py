@@ -208,14 +208,15 @@ def run_tutorial(client, pupil, channel):
 
     yield from next_message()
     say(
-        "That's it!"
-        " This is the end of the introductory tutorial."
+        "Well done!"
+        " This is the end of the introductory tutorial! :party:"
         " Now you know how to connect to Slack as a bot, receive messages, and send messages back."
         " What will you do now?"
-        "\n * Get some ideas for bots to create https://github.com/eightyeight/ncss2016bots#bot-ideas"
+        "\n * Get some ideas for a bot to create https://github.com/eightyeight/ncss2016bots#bot-ideas"
+        "\n * See a simple example bot: my friend @randombot https://github.com/eightyeight/ncss2016bots/blob/master/randombot/main.py"
+        "\n * See a more complicated example bot: @weatherbot https://github.com/eightyeight/ncss2016bots/blob/master/weatherbot/main.py"
+        "\n * Read my own source code! https://github.com/eightyeight/ncss2016bots/blob/master/tutorbot/main.py"
         "\n * Read about how Slack messages are formatted so you can send fancier messages https://api.slack.com/docs/formatting"
-        "\n * Read my source code! https://github.com/eightyeight/ncss2016bots/blob/master/tutorbot/main.py"
-        "\n * See a simpler example: my friend @randombot https://github.com/eightyeight/ncss2016bots/blob/master/randombot/main.py"
     )
 
 @asyncio.coroutine
@@ -224,10 +225,6 @@ def next_message():
     text = message['text'] = message['text'].lower()
     if 'exit' in text or 'quit' in text:
         raise UserQuit()
-    if 'help' in text or 'how do i' in text or 'can\'t' in text:
-        print('==============================')
-        print('Help requested?', text)
-        print('==============================')
     return message
 
 def send_message(client, channel, text, attach_image = None):
