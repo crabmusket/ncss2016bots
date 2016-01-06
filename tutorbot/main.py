@@ -2,7 +2,6 @@ import json
 import os
 import re
 import slackclient
-import subprocess
 import sys
 import asyncio
 
@@ -13,24 +12,24 @@ def main():
         print('Could not find Slack API token:', e)
         sys.exit(1)
 
-    slack = slackclient.SlackClient(token)
-    if slack.rtm_connect():
-        auth = json.loads(slack.api_call('auth.test').decode('utf-8'))
+    client = slackclient.SlackClient(token)
+    if client.rtm_connect():
+        auth = json.loads(client.api_call('auth.test').decode('utf-8'))
         if 'ok' in auth and not auth['ok']:
             print('auth.test returned not OK')
             sys.exit(1)
         my_id = auth['user_id']
-        tutorbot(slack, my_id)
+        tutorbot(client, my_id)
     else:
         print('Could not connect to Slack')
         sys.exit(1)
 
-def tutorbot(slack, my_id):
+def tutorbot(client, my_id):
     tutor = None
     running_tutorials = {}
     mentioned = re.compile('<@' + my_id + '>')
     while True:
-        messages = slack.rtm_read()
+        messages = client.rtm_read()
         for message in messages:
             if 'user' in message and message['user'] == my_id:
                 continue
@@ -40,35 +39,35 @@ def tutorbot(slack, my_id):
                         if tutor is None:
                             tutor = message['user']
                         else:
-                            send_message(slack, message['channel'], 'Nice try')
+                            send_message(client, message['channel'], 'Nice try')
                     else:
-                        handle_private_message(slack, message, running_tutorials)
+                        handle_private_message(client, message, running_tutorials)
                 elif mentioned.match(message['text']) is not None:
-                    handle_public_message(slack, message)
+                    handle_public_message(client, message)
 
-def handle_public_message(slack, message):
-    send_message(slack, message['channel'], "<@"+message['user']+">, come talk to me in https://ncss2016bots.slack.com/messages/@tutorbot/")
+def handle_public_message(client, message):
+    send_message(client, message['channel'], "<@"+message['user']+">, come talk to me in https://ncss2016bots.slack.com/messages/@tutorbot/")
 
-def handle_private_message(slack, message, tutorials):
+def handle_private_message(client, message, tutorials):
     user = message['user']
     if user in tutorials:
         try:
             tutorials[user].send(message)
         except (StopIteration, UserQuit):
             del tutorials[user]
-            send_message(slack, message['channel'], 'Bye!')
+            send_message(client, message['channel'], 'Bye!')
         except:
             del tutorials[user]
-            send_message(slack, message['channel'], 'Something went wrong!')
+            send_message(client, message['channel'], 'Something went wrong!')
     else:
-        tutorial = run_tutorial(slack, user, message['channel'])
+        tutorial = run_tutorial(client, user, message['channel'])
         tutorial.send(None)
         tutorials[user] = tutorial
 
 def example(text):
     return text[1:]
 
-step1script = example('''
+ex1script = example('''
 import slackclient
 
 token = 'your Slack API token here!'
@@ -79,30 +78,30 @@ else:
     print('failed for some reason :(')
 ''')
 
-step2script = example('''
+ex2script = example('''
     while True:
         messages = client.rtm_read()
         for message in messages:
             print(message)
-'''
+''')
 
-step3script = example('''
+ex3script = example('''
             if message['type'] != 'message':
                 continue
             if 'robots suck' in message['text']:
                 client.rtm_send_message(message['channel'], 'I heard that!')
-'''
+''')
 
 class UserQuit(Exception):
     pass
 
 @asyncio.coroutine
-def run_tutorial(slack, pupil, channel):
+def run_tutorial(client, pupil, channel):
     def say(text, **kwargs):
         if len(kwargs) == 0:
-            slack.rtm_send_message(channel, text)
+            client.rtm_send_message(channel, text)
         else:
-            send_message(slack, channel, text, **kwargs)
+            send_message(client, channel, text, **kwargs)
 
     say("Hey there! If you'd like me to start the tutorial, send me a message with 'begin' in it!")
     msg = yield
@@ -143,10 +142,10 @@ def run_tutorial(slack, pupil, channel):
         " It looks something like this:"
     )
 
-    send_file(slack, channel,
+    send_file(client, channel,
         name = 'step 1.py',
         filetype = 'python',
-        content = step1script,
+        content = ex1script,
     )
 
     say(
@@ -161,14 +160,17 @@ def run_tutorial(slack, pupil, channel):
         " Here's Daniel inviting me by @mentioning me in the #robots channel:"
     ), attach_image = 'http://i.imgur.com/2wybb1W.png')
 
+    say("Once you've done that, let me know!")
+        
+    yield from next_message()
     say(
-        "Once you've done that, we can add a little more code to start listening for messages."
+        "Now we can add a little more code to start listening for messages."
         " Put this inside the `if` branch after `print('connected!')`:"
     )
-    send_file(slack, channel,
+    send_file(client, channel,
         name = 'step 2.py',
         filetype = 'python',
-        content = step2script,
+        content = ex2script,
     )
     say(
         "If you run that code, then send a message in the #robots channel, and you should see it printed out by your program!"
@@ -193,10 +195,10 @@ def run_tutorial(slack, pupil, channel):
         " The tricky part is finding the right channel ID for a particular message."
         " For now, we'll write a bot that only responds to messages in the same channel they appeared in, so we can get the channel out of the message object, like this:"
     )
-    send_file(slack, channel,
+    send_file(client, channel,
         name = 'step 3.py',
         filetype = 'python',
-        content = step3script,
+        content = ex3script,
     )
     say(
         "Notice that we're ignoring events that aren't messages."
@@ -205,6 +207,16 @@ def run_tutorial(slack, pupil, channel):
     )
 
     yield from next_message()
+    say(
+        "That's it!"
+        " This is the end of the introductory tutorial."
+        " Now you know how to connect to Slack as a bot, receive messages, and send messages back."
+        " What will you do now?"
+        "\n * Get some ideas for bots to create https://github.com/eightyeight/ncss2016bots#bot-ideas"
+        "\n * Read about how Slack messages are formatted so you can send fancier messages https://api.slack.com/docs/formatting"
+        "\n * Read my source code! https://github.com/eightyeight/ncss2016bots/blob/master/tutorbot/main.py"
+        "\n * See a simpler example: my friend @randombot https://github.com/eightyeight/ncss2016bots/blob/master/randombot/main.py"
+    )
 
 @asyncio.coroutine
 def next_message():
@@ -218,7 +230,7 @@ def next_message():
         print('==============================')
     return message
 
-def send_message(slack, channel, text, attach_image = None):
+def send_message(client, channel, text, attach_image = None):
     attachments = []
     if attach_image is not None:
         attachments.append({
@@ -226,7 +238,7 @@ def send_message(slack, channel, text, attach_image = None):
             'image_url': attach_image,
         })
 
-    raw_response = slack.api_call('chat.postMessage',
+    raw_response = client.api_call('chat.postMessage',
         channel = channel,
         text = text,
         as_user = True,
@@ -236,8 +248,8 @@ def send_message(slack, channel, text, attach_image = None):
     if 'error' in response:
         print('Slack API error', response['error'])
 
-def send_file(slack, channel, content, name, filetype):
-    raw_response = slack.api_call('files.upload',
+def send_file(client, channel, content, name, filetype):
+    raw_response = client.api_call('files.upload',
         channels = channel,
         content = content,
         filename = name,
