@@ -33,7 +33,7 @@ def tutorbot(client, my_id):
         for message in messages:
             if 'user' in message and message['user'] == my_id:
                 continue
-            if message.get('type', None) == 'message':
+            if message.get('type', None) == 'message' and 'text' in message:
                 if message['channel'][0] == 'D':
                     if 'I am the tutor' in message['text'].lower():
                         if tutor is None:
